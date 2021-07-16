@@ -1,3 +1,5 @@
 # github.com/jinzhu/copier v0.3.2
 ## explicit
-github.com/jinzhu/copier
+# github.com/ybzhanghx/copier v0.0.0-20201016031042-c365a74ca62d
+## explicit
+github.com/ybzhanghx/copier

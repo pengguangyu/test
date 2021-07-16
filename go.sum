@@ -1,2 +1,5 @@
+github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a/go.mod h1:yL958EeXv8Ylng6IfnvG4oflryUi3vgA3xPs9hmII1s=
 github.com/jinzhu/copier v0.3.2 h1:QdBOCbaouLDYaIPFfi1bKv5F5tPpeTwXe4sD0jqtz5w=
 github.com/jinzhu/copier v0.3.2/go.mod h1:24xnZezI2Yqac9J61UC6/dG/k76ttpq0DdJI3QmUvro=
+github.com/ybzhanghx/copier v0.0.0-20201016031042-c365a74ca62d h1:1Edc3f8v5GtycgnQjzJHFPGyDLinrmVVgG4B2H0QjIA=
+github.com/ybzhanghx/copier v0.0.0-20201016031042-c365a74ca62d/go.mod h1:KDiMNn1GmRQUftEfyTggEZus8OeBFIO6ka3bQ4FVCuE=

@@ -6,8 +6,9 @@ import (
 	"time"
 
 	// "github.com/jinzhu/copier"
-	"github.com/ybzhanghx/copier"
+	// "github.com/ybzhanghx/copier"
 	// "hub.fastgit.org/jinzhu/copier"
+	"github.com/pengguangyu/copystruct"
 )
 
 type User struct {
@@ -44,7 +45,7 @@ func main() {
 	)
 
 	// copier.Copy(&employee, &user)
-	copier.CopyByTag(&employee, &user, "json")
+	copystruct.CopyStructTag(&employee, &user, "json")
 
 	fmt.Printf("%#v \n", employee)
 	// Employee{
@@ -57,7 +58,7 @@ func main() {
 
 	// Copy struct to slice
 	// copier.Copy(&employees, &user)
-	copier.CopyByTag(&employees, &user, "json")
+	copystruct.CopyStructTag(&employees, &user, "json")
 
 	fmt.Printf("%#v \n", employees)
 	// []Employee{
@@ -67,7 +68,7 @@ func main() {
 	// Copy slice to slice
 	employees = []Employee{}
 	// copier.Copy(&employees, &users)
-	copier.CopyByTag(&employees, &users, "json")
+	copystruct.CopyStructTag(&employees, &users, "json")
 
 	fmt.Printf("%#v \n", employees)
 	// []Employee{
@@ -101,7 +102,7 @@ func (p *structB) PubTime_int64(t int64) {
 func CopyByTag2() {
 	obj1 := structA{Items: "233", UserId: "5433", PubTime: time.Now().Unix()}
 	obj2 := &structB{}
-	err := copier.CopyByTag(obj2, &obj1, "mson")
+	err := copystruct.CopyStructTag(obj2, &obj1, "mson")
 	if err != nil {
 		fmt.Println("Should not raise error")
 	}

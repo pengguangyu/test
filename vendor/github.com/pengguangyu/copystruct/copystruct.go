@@ -1,4 +1,4 @@
-package copier
+package copystruct
 
 import (
 	"database/sql"
@@ -6,34 +6,33 @@ import (
 	"reflect"
 )
 
-// Copy copy things
-func Copy(toValue interface{}, fromValue interface{}) (err error) {
+// 直接copy，结构体必须命名一致，不一致的忽略不copy
+func CopyStruct(toVal interface{}, fromVal interface{}) (err error) {
 	var (
 		isSlice bool
 		amount  = 1
-		from    = indirect(reflect.ValueOf(fromValue))
-		to      = indirect(reflect.ValueOf(toValue))
+		from    = indirect(reflect.ValueOf(fromVal))
+		to      = indirect(reflect.ValueOf(toVal))
 	)
 
+	// 校验数据
 	if !to.CanAddr() {
-		return errors.New("copy to value is unaddressable")
+		return errors.New("原数据 寻址错误！")
 	}
-
-	// Return is from value is invalid
 	if !from.IsValid() {
 		return
 	}
 
-	fromType := indirectType(from.Type())
-	toType := indirectType(to.Type())
+	// 检测类型
+	fromType := getType(from.Type())
+	toType := getType(to.Type())
 
-	// Just set it if possible to assign
-	// And need to do copy anyway if the type is struct
+	// 尝试直接copy
 	if fromType.Kind() != reflect.Struct && from.Type().AssignableTo(to.Type()) {
 		to.Set(from)
 		return
 	}
-
+	// 非struct
 	if fromType.Kind() != reflect.Struct || toType.Kind() != reflect.Struct {
 		return
 	}
@@ -64,8 +63,8 @@ func Copy(toValue interface{}, fromValue interface{}) (err error) {
 
 		// check source
 		if source.IsValid() {
-			fromTypeFields := deepFields(fromType)
-			//fmt.Printf("%#v", fromTypeFields)
+			fromTypeFields := getFields(fromType)
+			// fmt.Printf("%#v", fromTypeFields)
 			// Copy from field to field or method
 			for _, field := range fromTypeFields {
 				name := field.Name
@@ -75,7 +74,7 @@ func Copy(toValue interface{}, fromValue interface{}) (err error) {
 					if toField := dest.FieldByName(name); toField.IsValid() {
 						if toField.CanSet() {
 							if !set(toField, fromField) {
-								if err := Copy(toField.Addr().Interface(), fromField.Interface()); err != nil {
+								if err := CopyStruct(toField.Addr().Interface(), fromField.Interface()); err != nil {
 									return err
 								}
 							}
@@ -97,7 +96,7 @@ func Copy(toValue interface{}, fromValue interface{}) (err error) {
 			}
 
 			// Copy from method to field
-			for _, field := range deepFields(toType) {
+			for _, field := range getFields(toType) {
 				name := field.Name
 
 				var fromMethod reflect.Value
@@ -117,6 +116,7 @@ func Copy(toValue interface{}, fromValue interface{}) (err error) {
 				}
 			}
 		}
+
 		if isSlice {
 			if dest.Addr().Type().AssignableTo(to.Type().Elem()) {
 				to.Set(reflect.Append(to, dest.Addr()))
@@ -128,10 +128,10 @@ func Copy(toValue interface{}, fromValue interface{}) (err error) {
 	return
 }
 
-// Copy copy things By Tag
-func CopyByTag(toValue interface{}, fromValue interface{}, tag string) (err error) {
+// 使用 Tag copy
+func CopyStructTag(toValue interface{}, fromValue interface{}, tag string) (err error) {
 	if tag == "" {
-		return Copy(toValue, fromValue)
+		return CopyStruct(toValue, fromValue)
 	}
 	var (
 		isSlice bool
@@ -140,25 +140,24 @@ func CopyByTag(toValue interface{}, fromValue interface{}, tag string) (err erro
 		to      = indirect(reflect.ValueOf(toValue))
 	)
 
+	// 校验数据
 	if !to.CanAddr() {
 		return errors.New("copy to value is unaddressable")
 	}
-
-	// Return is from value is invalid
 	if !from.IsValid() {
 		return
 	}
 
-	fromType := indirectType(from.Type())
-	toType := indirectType(to.Type())
+	// 检测类型
+	fromType := getType(from.Type())
+	toType := getType(to.Type())
 
-	// Just set it if possible to assign
-	// And need to do copy anyway if the type is struct
+	// 尝试直接copy
 	if fromType.Kind() != reflect.Struct && from.Type().AssignableTo(to.Type()) {
 		to.Set(from)
 		return
 	}
-
+	// 非struct
 	if fromType.Kind() != reflect.Struct || toType.Kind() != reflect.Struct {
 		return
 	}
@@ -169,11 +168,12 @@ func CopyByTag(toValue interface{}, fromValue interface{}, tag string) (err erro
 			amount = from.Len()
 		}
 	}
-	//get fields
-	fromTypeFields := deepFields(fromType)
-	toTypeFields := deepFields(toType)
 
-	//generate to map  tag => fieldName
+	//获取元素list
+	fromTypeFields := getFields(fromType)
+	toTypeFields := getFields(toType)
+
+	//转map
 	ToTagNameMapFieldName := make(map[string]string, len(toTypeFields))
 	for i := 0; i < len(toTypeFields); i++ {
 		var tTagName = GetTag(toTypeFields[i], tag)
@@ -199,7 +199,7 @@ func CopyByTag(toValue interface{}, fromValue interface{}, tag string) (err erro
 
 		// check source
 		if source.IsValid() {
-			//fmt.Printf("%#v", fromTypeFields)
+			// fmt.Printf("%#v", fromTypeFields)
 			// Copy from field to field or method
 			for _, field := range fromTypeFields {
 				var fromFieldName = field.Name
@@ -218,7 +218,7 @@ func CopyByTag(toValue interface{}, fromValue interface{}, tag string) (err erro
 					if toField.IsValid() {
 						if toField.CanSet() {
 							if !set(toField, fromField) {
-								if err := CopyByTag(toField.Addr().Interface(), fromField.Interface(), tag); err != nil {
+								if err := CopyStructTag(toField.Addr().Interface(), fromField.Interface(), tag); err != nil {
 									return err
 								}
 							}
@@ -261,6 +261,7 @@ func CopyByTag(toValue interface{}, fromValue interface{}, tag string) (err erro
 				}
 			}
 		}
+
 		if isSlice {
 			if dest.Addr().Type().AssignableTo(to.Type().Elem()) {
 				to.Set(reflect.Append(to, dest.Addr()))
@@ -272,14 +273,14 @@ func CopyByTag(toValue interface{}, fromValue interface{}, tag string) (err erro
 	return
 }
 
-func deepFields(reflectType reflect.Type) []reflect.StructField {
+func getFields(reflectType reflect.Type) []reflect.StructField {
 	var fields []reflect.StructField
 
-	if reflectType = indirectType(reflectType); reflectType.Kind() == reflect.Struct {
+	if reflectType = getType(reflectType); reflectType.Kind() == reflect.Struct {
 		for i := 0; i < reflectType.NumField(); i++ {
 			v := reflectType.Field(i)
 			if v.Anonymous {
-				fields = append(fields, deepFields(v.Type)...)
+				fields = append(fields, getFields(v.Type)...)
 			} else {
 				fields = append(fields, v)
 			}
@@ -296,13 +297,14 @@ func indirect(reflectValue reflect.Value) reflect.Value {
 	return reflectValue
 }
 
-func indirectType(reflectType reflect.Type) reflect.Type {
+func getType(reflectType reflect.Type) reflect.Type {
 	for reflectType.Kind() == reflect.Ptr || reflectType.Kind() == reflect.Slice {
 		reflectType = reflectType.Elem()
 	}
 	return reflectType
 }
 
+// 核心
 func set(to, from reflect.Value) bool {
 	if from.IsValid() {
 		if from.Kind() == reflect.Struct {
@@ -310,7 +312,7 @@ func set(to, from reflect.Value) bool {
 		}
 
 		if to.Kind() == reflect.Ptr {
-			//set `to` to nil if from is nil
+			//set `to` to nil if from is nil 特殊处理nil
 			if from.Kind() == reflect.Ptr && from.IsNil() {
 				to.Set(reflect.Zero(to.Type()))
 				return true

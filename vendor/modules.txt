@@ -1,2 +1,0 @@
-# github.com/pengguangyu/copystruct v0.0.2
-## explicit

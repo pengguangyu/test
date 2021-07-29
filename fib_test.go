@@ -14,6 +14,8 @@ func BenchmarkFib(b *testing.B) {
 	}
 }
 
+// Generate 分配的内存是 GenerateWithCap 的 6 倍，设置了切片容量，内存只分配一次，而不设置切片容量，内存分配了 40 次。
+// go test -bench='Generate' -benchmem .
 func generateWithCap(n int) []int {
 	rand.Seed(time.Now().UnixNano())
 	nums := make([]int, 0, n)

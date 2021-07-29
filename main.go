@@ -2,118 +2,98 @@ package main
 
 import (
 	"fmt"
-	"strconv"
-	"time"
-
-	// "github.com/jinzhu/copier"
-	// "github.com/ybzhanghx/copier"
-	// "hub.fastgit.org/jinzhu/copier"
-	"github.com/pengguangyu/copystruct"
+	"image"
+	"image/draw"
+	"image/jpeg"
+	"image/png"
+	"os"
 )
 
-type User struct {
-	NameT string `json:"name"`
-	Role  string
-	Age   int32
-}
-
-func (user *User) DoubleAge() int32 {
-	return 2 * user.Age
-}
-
-type Employee struct {
-	Name      string `json:"name"`
-	Age       int32
-	DoubleAge int32
-	EmployeId int64
-	SuperRule string
-}
-
-func (employee *Employee) Role(role string) {
-	employee.SuperRule = "Super " + role
-}
-
 func main() {
-	CopyByTag2()
+	//原始图片是sam.jpg
+	imgb, _ := os.Open("sam.jpg")
+	img, _ := jpeg.Decode(imgb)
+	defer imgb.Close()
 
-	var (
-		user  = User{NameT: "Jinzhu", Age: 18, Role: "Admin"}
-		users = []User{{NameT: "Jinzhu", Age: 18, Role: "Admin"},
-			{NameT: "jinzhu 2", Age: 30, Role: "Dev"}}
-		employee  = Employee{}
-		employees = []Employee{}
-	)
+	wmb, _ := os.Open("text.png")
+	watermark, _ := png.Decode(wmb)
+	defer wmb.Close()
 
-	// copier.Copy(&employee, &user)
-	copystruct.CopyStructTag(&employee, &user, "json")
+	//把水印写到右下角，并向0坐标各偏移10个像素
+	offset := image.Pt(img.Bounds().Dx()-watermark.Bounds().Dx()-10, img.Bounds().Dy()-watermark.Bounds().Dy()-10)
+	b := img.Bounds()
+	m := image.NewNRGBA(b)
 
-	fmt.Printf("%#v \n", employee)
-	// Employee{
-	//    Name: "Jinzhu",           // Copy from field
-	//    Age: 18,                  // Copy from field
-	//    DoubleAge: 36,            // Copy from method
-	//    EmployeeId: 0,            // Ignored
-	//    SuperRule: "Super Admin", // Copy to method
-	// }
+	draw.Draw(m, b, img, image.ZP, draw.Src)
+	draw.Draw(m, watermark.Bounds().Add(offset), watermark, image.ZP, draw.Over)
 
-	// Copy struct to slice
-	// copier.Copy(&employees, &user)
-	copystruct.CopyStructTag(&employees, &user, "json")
+	//生成新图片new.jpg，并设置图片质量..
+	imgw, _ := os.Create("new.jpg")
+	jpeg.Encode(imgw, m, &jpeg.Options{100})
 
-	fmt.Printf("%#v \n", employees)
-	// []Employee{
-	//   {Name: "Jinzhu", Age: 18, DoubleAge: 36, EmployeId: 0, SuperRule: "Super Admin"}
-	// }
+	defer imgw.Close()
 
-	// Copy slice to slice
-	employees = []Employee{}
-	// copier.Copy(&employees, &users)
-	copystruct.CopyStructTag(&employees, &users, "json")
-
-	fmt.Printf("%#v \n", employees)
-	// []Employee{
-	//   {Name: "Jinzhu", Age: 18, DoubleAge: 36, EmployeId: 0, SuperRule: "Super Admin"},
-	//   {Name: "jinzhu 2", Age: 30, DoubleAge: 60, EmployeId: 0, SuperRule: "Super Dev"},
-	// }
+	fmt.Println("水印添加结束,请查看new.jpg图片...")
 }
 
-///////////////////////
+// package main
 
-type structA struct {
-	Items   string `mson:"Item_string"`
-	UserId  string `mson:"UserId_string"`
-	PubTime int64  `mson:"PubTime_int64"`
-}
+// import (
+//     "fmt"
+//     "image"
+//     "image/color"
+//     "image/jpeg"
+//     "io/ioutil"
+//     "log"
+//     "os"
 
-type structB struct {
-	Item    string    `mson:"Item_string"`
-	UserId  int64     `mson:"UserId_int64"`
-	PubTime time.Time `mson:"PubTime_time_Time"`
-}
+//     "github.com/golang/freetype"
+// )
 
-func (p *structB) UserId_string(t string) {
-	p.UserId, _ = strconv.ParseInt(t, 10, 64)
-}
+// func main() {
+//     //需要加水印的图片
+//     imgfile, _ := os.Open("u=488179422,3251067872&fm=200&gp=0.jpg")
+//     defer imgfile.Close()
 
-func (p *structB) PubTime_int64(t int64) {
-	p.PubTime = time.Unix(t, 0)
-}
+//     jpgimg, _ := jpeg.Decode(imgfile)
 
-func CopyByTag2() {
-	obj1 := structA{Items: "233", UserId: "5433", PubTime: time.Now().Unix()}
-	obj2 := &structB{}
-	err := copystruct.CopyStructTag(obj2, &obj1, "mson")
-	if err != nil {
-		fmt.Println("Should not raise error")
-	}
+//     img := image.NewNRGBA(jpgimg.Bounds())
 
-	if obj2.Item != obj1.Items {
-		fmt.Println("Field A should be copied")
-	}
-	if strconv.FormatInt(obj2.UserId, 10) != obj1.UserId {
-		fmt.Println("Field B should be copied")
-	}
-	if obj2.PubTime.Unix() != obj1.PubTime {
-		fmt.Println("Field C should be copied")
-	}
-}
+//     for y := 0; y < img.Bounds().Dy(); y++ {
+//         for x := 0; x < img.Bounds().Dx(); x++ {
+//             img.Set(x, y, jpgimg.At(x, y))
+//         }
+//     }
+//     //拷贝一个字体文件到运行目录
+//     fontBytes, err := ioutil.ReadFile("simsun.ttc")
+//     if err != nil {
+//         log.Println(err)
+//     }
+
+//     font, err := freetype.ParseFont(fontBytes)
+//     if err != nil {
+//         log.Println(err)
+//     }
+
+//     f := freetype.NewContext()
+//     f.SetDPI(72)
+//     f.SetFont(font)
+//     f.SetFontSize(12)
+//     f.SetClip(jpgimg.Bounds())
+//     f.SetDst(img)
+//     f.SetSrc(image.NewUniform(color.RGBA{R: 255, G: 0, B: 0, A: 255}))
+
+//     pt := freetype.Pt(img.Bounds().Dx()-200, img.Bounds().Dy()-12)
+//     _, err = f.DrawString("中文 string 255.43,232.12312 老纪", pt)
+
+//     //draw.Draw(img,jpgimg.Bounds(),jpgimg,image.ZP,draw.Over)
+
+//     //保存到新文件中
+//     newfile, _ := os.Create("aaa.jpg")
+//     defer newfile.Close()
+
+//     err = jpeg.Encode(newfile, img, &jpeg.Options{100})
+//     if err != nil {
+//         fmt.Println(err)
+//     }
+// }

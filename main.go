@@ -1,86 +1,81 @@
 package main
 
 import (
-	"errors"
-	"log"
-	"net"
-	"net/http"
-	"net/rpc"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"fmt"
+	"os"
 )
 
-type Args struct {
-	A, B int
-}
-
-type Quotient struct {
-	Quo, Rem int
-}
-
-type Arith int
-
-func (t *Arith) Multiply(args *Args, reply *int) error {
-	*reply = args.A * args.B
-	return nil
-}
-
-func (t *Arith) Divide(args *Args, quo *Quotient) error {
-	if args.B == 0 {
-		return errors.New("divide by zero")
+//RSA加密
+// plainText 要加密的数据
+// path 公钥匙文件地址
+func RSA_Encrypt(plainText []byte, path string) []byte {
+	//打开文件
+	file, err := os.Open(path)
+	if err != nil {
+		panic(err)
 	}
-	quo.Quo = args.A / args.B
-	quo.Rem = args.A % args.B
-	return nil
+	defer file.Close()
+	//读取文件的内容
+	info, _ := file.Stat()
+	buf := make([]byte, info.Size())
+	file.Read(buf)
+	//pem解码
+	block, _ := pem.Decode(buf)
+	//x509解码
+
+	publicKeyInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		panic(err)
+	}
+	//类型断言
+	publicKey := publicKeyInterface.(*rsa.PublicKey)
+	//对明文进行加密
+	cipherText, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, plainText)
+	if err != nil {
+		panic(err)
+	}
+	//返回密文
+	return cipherText
+}
+
+//RSA解密
+// cipherText 需要解密的byte数据
+// path 私钥文件路径
+func RSA_Decrypt(cipherText []byte, path string) []byte {
+	//打开文件
+	file, err := os.Open(path)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	//获取文件内容
+	info, _ := file.Stat()
+	buf := make([]byte, info.Size())
+	file.Read(buf)
+	//pem解码
+	block, _ := pem.Decode(buf)
+	//X509解码
+	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		panic(err)
+	}
+	//对密文进行解密
+	plainText, _ := rsa.DecryptPKCS1v15(rand.Reader, privateKey, cipherText)
+	//返回明文
+	return plainText
 }
 
 func main() {
-	arith := new(Arith)
-	rpc.Register(arith)
-	rpc.HandleHTTP()
-	l, e := net.Listen("tcp", ":1234")
-	if e != nil {
-		log.Fatal("listen error:", e)
-	}
-	http.Serve(l, nil)
+	//加密
+	data := []byte("hello world")
+	encrypt := RSA_Encrypt(data, "creatersa/public.pem")
+	fmt.Println(string(encrypt))
+
+	// 解密
+	decrypt := RSA_Decrypt(encrypt, "creatersa/private.pem")
+	fmt.Println(string(decrypt))
 }
-
-// package main
-
-// import (
-// 	"fmt"
-// 	"log"
-// 	"net/rpc"
-// )
-
-// type Args struct {
-// 	A, B int
-// }
-
-// type Quotient struct {
-// 	Quo, Rem int
-// }
-
-// func main() {
-// 	client, err := rpc.DialHTTP("tcp", "127.0.0.1:1234")
-// 	if err != nil {
-// 		log.Fatal("dialing:", err)
-// 	}
-
-// 	// Synchronous call
-// 	args := &Args{7, 8}
-// 	var reply int
-// 	err = client.Call("Arith.Multiply", args, &reply)
-// 	if err != nil {
-// 		log.Fatal("arith error:", err)
-// 	}
-// 	fmt.Printf("Arith: %d*%d=%d\n", args.A, args.B, reply)
-
-// 	// Asynchronous call
-// 	quotient := new(Quotient)
-// 	divCall := client.Go("Arith.Divide", args, quotient, nil)
-// 	replyCall := <-divCall.Done // will be equal to divCall
-// 	if replyCall.Error != nil {
-// 		log.Fatal("arith error:", replyCall.Error)
-// 	}
-// 	fmt.Printf("Arith: %d/%d=%d...%d", args.A, args.B, quotient.Quo, quotient.Rem)
-// 	// check errors, print, etc.
-// }
